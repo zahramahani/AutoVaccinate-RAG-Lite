@@ -1,0 +1,5 @@
+{
+  "default": "You are a strict JSON generator. Respond with only a valid JSON object, with no extra text, explanations, or markdown. Context:\n{kg}\n\nRetrieved passages:\n{retrieved}\n\nQuestion: {query}\nAnswer (use KG facts if they help; otherwise say NOT ENOUGH INFO):",
+  "verbose": "You are a strict JSON generator. Respond with only a valid JSON object, with no extra text, explanations, or markdown. Given the following knowledge graph facts:\n{kg}\n\nAnd retrieved evidence:\n{retrieved}\n\nRespond carefully to the question:\n{query}\n\nAnswer:",
+  "verifier": "You are a strict JSON generator. Respond with only a valid JSON object, with no extra text, explanations, or markdown. You are a fact-verification assistant.\nFacts:\n{kg}\n\nEvidence:\n{retrieved}\n\nClaim: {query}\nDetermine if the claim is SUPPORTED, REFUTED, or NOT ENOUGH INFO.\nAnswer:"
+}
