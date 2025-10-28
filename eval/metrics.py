@@ -1,15 +1,78 @@
 # eval/metrics.py
 """
-Lightweight RAGAS-style metrics implementation for adaptive RAG evaluation.
+RAGAS-based evaluation harness for adaptive RAG trials.
 
 Computes:
- - Faithfulness: semantic similarity between answer and retrieved context.
- - Answer Relevance: similarity between query and answer.
- - Context Precision / Recall: keyword overlap between answer and retrieved context.
-"""
+ - Faithfulness (standard + optional HHEM classifier)
+ - Answer Accuracy (LLM-as-a-judge)
+ - Context Relevance
+ - Context Precision
+ - Context Recall
 
+Each metric is computed using the official RAGAS implementations.
+Supports both synchronous and asynchronous batch evaluation.
+
+Requirements:
+    pip install ragas==0.1.16
+    pip install openai  # or mistralai, depending on your evaluator_llm choice
+"""
+from ragas.metrics import (
+    Faithfulness,
+    FaithfulnesswithHHEM,
+    AnswerAccuracy,
+    ContextRelevance,
+    LLMContextPrecisionWithReference,
+    LLMContextRecall,
+)
+
+from ragas import evaluate
+import pandas as pd
+from datasets import Dataset
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
+
+def evaluate_ragas(
+    llm,
+    embeddings, 
+    dataset,
+    device: str = "cpu",
+    batch_size: int = 10,
+):
+    """
+    Evaluate a single query–answer pair using RAGAS metrics with Mistral support.
+    """
+    rag_df = pd.DataFrame([
+        {
+            "question": str(d["question"]),
+            "answer": str(d["answer"]),
+            "contexts": [str(doc.page_content) for doc in d["contexts"]],
+            "ground_truth": str(d["ground_truth"])
+        }
+        for d in dataset
+    ])
+    rag_df.fillna("", inplace=True)
+
+    eval_dataset = Dataset.from_pandas(rag_df)
+
+    faithfulness_metric = Faithfulness(llm=llm)
+    accuracy_metric = AnswerAccuracy(llm=llm)
+    relevance_metric = ContextRelevance(llm=llm)
+    precision_metric = LLMContextPrecisionWithReference(llm=llm)
+    recall_metric = LLMContextRecall(llm=llm)
+    metrics = evaluate(eval_dataset,metrics=[faithfulness_metric,accuracy_metric,relevance_metric,precision_metric,recall_metric],
+                      llm=llm,embeddings=embeddings)
+    print("metrics is",metrics)
+    # Safely extract scores as dict
+    if hasattr(metrics, "_scores_dict"):
+        metrics_dict = metrics._scores_dict
+    else:
+        # fallback: try iterating
+        metrics_dict = {k: v for k, v in metrics.items()} if hasattr(metrics, "items") else {}
+    
+    return metrics_dict
+
+
+
 
 # ---------------------------------------------------------------------
 # Setup embedding model (shared for all metric calls)
@@ -36,9 +99,17 @@ def jaccard_overlap(a, b):
 # ---------------------------------------------------------------------
 # Main evaluation
 # ---------------------------------------------------------------------
-def evaluate_ragas(query, answer, retrieved_docs, gold_answer):
+def simple_evaluate_ragas(query, answer, retrieved_docs, gold_answer):
     """
     Evaluate a single query–answer pair using simplified RAGAS-style metrics.
+    
+    Lightweight RAGAS-style metrics implementation for adaptive RAG evaluation.
+
+    Computes:
+    - Faithfulness: semantic similarity between answer and retrieved context.
+    - Answer Relevance: similarity between query and answer.
+    - Context Precision / Recall: keyword overlap between answer and retrieved context.
+
     """
     # Aggregate retrieved context
     context_text = " ".join(d.page_content for d in retrieved_docs) if retrieved_docs else ""
@@ -62,134 +133,3 @@ def evaluate_ragas(query, answer, retrieved_docs, gold_answer):
         "context_precision": round(context_precision, 3),
         "context_recall": round(context_recall, 3),
     }
-# eval/metrics.py
-# """
-# RAGAS-based evaluation harness for adaptive RAG trials.
-
-# Computes:
-#  - Faithfulness (standard + optional HHEM classifier)
-#  - Answer Accuracy (LLM-as-a-judge)
-#  - Context Relevance
-#  - Context Precision
-#  - Context Recall
-
-# Each metric is computed using the official RAGAS implementations.
-# Supports both synchronous and asynchronous batch evaluation.
-
-# Requirements:
-#     pip install ragas==0.1.16
-#     pip install openai  # or mistralai, depending on your evaluator_llm choice
-# """
-# import os
-# os.environ["OPENAI_API_VERSION"] = "2022-12-01"
-# # import os export OPENAI_API_KEY="
-# # os.environ["OPENAI_API_KEY"] = ""
-# import asyncio
-# from ragas.dataset_schema import SingleTurnSample
-# from ragas.metrics import (
-#     Faithfulness,
-#     FaithfulnesswithHHEM,
-#     AnswerAccuracy,
-#     ContextRelevance,
-#     LLMContextPrecisionWithReference,
-#     LLMContextRecall,
-# )
-# import re
-# from pydantic import ValidationError
-# import ragas.prompt.pydantic_prompt as pyd_prompt
-
-# # --- Patch RAGAS JSON validation ---
-# def clean_json_output(output_string: str):
-#     match = re.search(r"\{[\s\S]*\}", output_string)
-#     if not match:
-#         raise ValueError("No JSON object found in model output.")
-#     return match.group(0)
-
-# # Save original validator
-# orig_validate_json = pyd_prompt.PydanticPrompt.generate_multiple
-
-# async def safe_generate_multiple(self, *args, **kwargs):
-#     try:
-#         return await orig_validate_json(self, *args, **kwargs)
-#     except ValidationError as e:
-#         if hasattr(e, "args") and e.args:
-#             text = e.args[0]
-#             try:
-#                 fixed_json = clean_json_output(text)
-#                 return self.output_model.model_validate_json(fixed_json)
-#             except Exception:
-#                 raise
-#         raise
-
-# # Patch it globally
-# pyd_prompt.PydanticPrompt.generate_multiple = safe_generate_multiple
-
-
-
-# # ---------------------------------------------------------------------
-# # Evaluation Harness
-# # ---------------------------------------------------------------------
-# async def evaluate_ragas(
-#     query: str,
-#     answer: str,
-#     retrieved_docs,
-#     gold_answer: str,
-#     evaluator_llm,
-#     use_hhem: bool = False,
-#     device: str = "cpu",
-#     batch_size: int = 10,
-# ):
-#     """
-#     Evaluate a single query–answer pair using official RAGAS metrics.
-
-#     Args:
-#         query (str): The user question.
-#         answer (str): The model-generated answer.
-#         retrieved_docs (List[Document]): Retrieved LangChain docs.
-#         gold_answer (str): Reference answer (ground truth).
-#         evaluator_llm: Wrapped evaluator LLM (RAGAS-compatible).
-#         use_hhem (bool): If True, use FaithfulnesswithHHEM instead of vanilla Faithfulness.
-#         device (str): Device for HHEM model (e.g., 'cuda:0' or 'cpu').
-#         batch_size (int): Inference batch size for HHEM.
-
-#     Returns:
-#         dict: RAGAS metric scores in [0,1].
-#     """
-    
-#     retrieved_contexts = [d.page_content for d in retrieved_docs] if retrieved_docs else []
-
-#     # Build a single-turn sample
-#     sample = SingleTurnSample(
-#         user_input=query,
-#         response=answer,
-#         reference=gold_answer,
-#         retrieved_contexts=retrieved_contexts,
-#     )
-
-#     # Initialize metrics
-#     faithfulness_metric = (
-#         FaithfulnesswithHHEM(device=device, batch_size=batch_size)
-#         if use_hhem
-#         else Faithfulness(llm=evaluator_llm)
-#     )
-#     accuracy_metric = AnswerAccuracy(llm=evaluator_llm)
-#     relevance_metric = ContextRelevance(llm=evaluator_llm)
-#     precision_metric = LLMContextPrecisionWithReference(llm=evaluator_llm)
-#     recall_metric = LLMContextRecall(llm=evaluator_llm)
-
-#     # Compute all scores concurrently
-#     scores = await asyncio.gather(
-#         faithfulness_metric.single_turn_ascore(sample),
-#         accuracy_metric.single_turn_ascore(sample),
-#         relevance_metric.single_turn_ascore(sample),
-#         precision_metric.single_turn_ascore(sample),
-#         recall_metric.single_turn_ascore(sample),
-#     )
-
-#     return {
-#         "faithfulness": round(float(scores[0]), 3),
-#         "answer_accuracy": round(float(scores[1]), 3),
-#         "context_relevance": round(float(scores[2]), 3),
-#         "context_precision": round(float(scores[3]), 3),
-#         "context_recall": round(float(scores[4]), 3),
-#     }
