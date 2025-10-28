@@ -1,15 +1,13 @@
 import json
 import time
-import asyncio
+
 def safe_invoke(llm, prompt, retries=5, delay=5):
     """
     Retry wrapper for Mistral API calls to handle temporary 429 / capacity errors.
     """
     for attempt in range(1, retries + 1):
         try:
-            # if asyncio.iscoroutinefunction(llm._generate) or asyncio.iscoroutinefunction(llm.agenerate_text):
-            #     response_text =llm.agenerate_text(prompt)
-            # else:
+
             response_text = llm.invoke(prompt)
             return response_text
         except Exception as e:
@@ -17,7 +15,7 @@ def safe_invoke(llm, prompt, retries=5, delay=5):
             if "capacity" in msg.lower() or "429" in msg:
                 print(f"⚠️ [Attempt {attempt}/{retries}] Mistral capacity issue, retrying in {delay * attempt}s...")
                 time.sleep(delay * attempt)
-                # await asyncio.sleep(delay * attempt) 
+                
             else:
                 print(f"❌ Mistral error (non-retryable): {e}")
                 raise
