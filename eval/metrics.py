@@ -15,6 +15,7 @@ Supports both synchronous and asynchronous batch evaluation.
 Requirements:
     pip install ragas==0.1.16
     pip install openai  # or mistralai, depending on your evaluator_llm choice
+    https://medium.com/@pdashok2875/implementation-and-evaluation-of-rag-using-langchain-and-ragas-d29c6ffc5442
 """
 from ragas.metrics import (
     Faithfulness,
