@@ -1,4 +1,6 @@
+
 """
+Retriever.py
 Unified Retriever System for FEVER dataset.
 Builds, persists, and reloads BM25 or Dense (Chroma-based) retrievers.
 

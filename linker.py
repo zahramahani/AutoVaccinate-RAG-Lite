@@ -47,6 +47,7 @@ def normalize_label(s: str) -> str:
     return s
 
 logger = logging.getLogger(__name__)
+from functools import lru_cache
 
 def link_entity(label, topk=3, fuzz_threshold=80):
     """Link a text label to candidate QIDs using LMDB lookup and fuzzy match fallback."""
@@ -114,6 +115,9 @@ def link_entity(label, topk=3, fuzz_threshold=80):
 
     return out
 
+@lru_cache(maxsize=50000)
+def link_entity_cached(label, topk=3, fuzz_threshold=80):
+    return link_entity(label, topk, fuzz_threshold)
 
 def extract_entities(text: str):
     doc = nlp(text)

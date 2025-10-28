@@ -9,13 +9,22 @@ from difflib import SequenceMatcher
 from lmdb_connector import sp_has_object, get_all_aliases,normalize_pred
 
 # -------------------- SpaCy & NLI --------------------
-nlp = spacy.load("en_core_web_sm")
 
-nli = pipeline(
-    "text-classification",
-    model="roberta-large-mnli",
-    device=0 if __import__("torch").cuda.is_available() else -1
-)
+_nlp = None
+_nli = None
+
+def get_nlp():
+    global _nlp
+    if _nlp is None:
+        _nlp = spacy.load("en_core_web_sm")
+    return _nlp
+
+def get_nli():
+    global _nli
+    if _nli is None:
+        _nli = pipeline("text-classification", model="roberta-large-mnli",
+                        device=0 if __import__("torch").cuda.is_available() else -1)
+    return _nli
 
 # -------------------- KG Consistency --------------------
 
@@ -72,6 +81,7 @@ def extract_candidate_assertions(text: str) -> List[Tuple[str, str, str]]:
     Extract SVO triples using spaCy; fallback heuristics if necessary.
     """
     triples = []
+    nlp = get_nlp()
     doc = nlp(text)
 
     # spaCy SVO extraction
@@ -113,6 +123,7 @@ def nli_entailment(premises: List[str], hypothesis: str) -> str:
     """
     Checks entailment using NLI model.
     """
+    nli = get_nli()
     premise = " ".join(premises)
     result = nli(f"{premise}\n\nHypothesis: {hypothesis}", truncation=True)[0]
     label = result["label"].upper()

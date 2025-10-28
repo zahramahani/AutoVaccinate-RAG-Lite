@@ -1,3 +1,4 @@
+#kg_query.py
 from lmdb_connector import lmdb_qid_get, get_triples_for_subjects
 import logging
 

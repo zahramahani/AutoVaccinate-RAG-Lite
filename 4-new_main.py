@@ -27,10 +27,11 @@ from retriever import RetrieverController,build_retriever
 from prompt_patch import PromptPatcher
 from reranker import RerankerWrapper
 from reindexer import Reindexer
-from linker import extract_entities, link_entity
+from linker import extract_entities, link_entity_cached
 from kg_query import get_kg_triples, facts_to_text
 from detector import detect_failures
 from eval.metrics import evaluate_ragas
+from tqdm.asyncio import tqdm_asyncio
 
 if not os.environ.get("MISTRAL_API_KEY"):
     os.environ["MISTRAL_API_KEY"] = getpass.getpass("Enter API key for Mistral AI: ")
@@ -54,9 +55,7 @@ LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "patch_info.log"
 
 # Create separate handlers
-file_handler = logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
 
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
@@ -65,7 +64,6 @@ console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.handlers.clear()
-logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 OUTPUT_LOG = LOG_DIR / "patch_trials.jsonl"
@@ -127,6 +125,13 @@ async def run_patch_trials(dataset):
     ]
 
     for patch_id, (retriever_type, k, prompt_id, rerank_on) in enumerate(patch_combos):
+        
+        trial_log = LOG_DIR / f"trial_{patch_id}_{retriever_type}_{prompt_id}.log"
+        file_handler = logging.FileHandler(trial_log, mode="w", encoding="utf-8")
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+        logger.addHandler(file_handler)
+
         logging.info(f"=== Trial {patch_id}: retriever={retriever_type}, k={k}, prompt={prompt_id}, rerank={rerank_on}")
 
         if retriever_type=="bm25":
@@ -141,28 +146,36 @@ async def run_patch_trials(dataset):
 
         start_time = time.time()
         dataset_answer=[]
-        for sample in dataset:
+        # for sample in dataset:
+        for sample in tqdm_asyncio(dataset, desc=f"Trial {patch_id}", ncols=90):
             query = sample["query"]
             gold_answer = sample["answer"]
             logging.info(f"🧠 Query: {query}")
 
             # Retrieve docs
-            retrieved_docs = retriever.retrieve(query)
+            # retrieved_docs = retriever.retrieve(query)
+            # if rerank_on:
+            #     retrieved_docs = reranker.rerank(query, retrieved_docs)
+            retrieved_docs = await asyncio.to_thread(retriever.retrieve, query)
             if rerank_on:
-                retrieved_docs = reranker.rerank(query, retrieved_docs)
+                retrieved_docs = await asyncio.to_thread(reranker.rerank, query, retrieved_docs)
             retrieved_texts = [d.page_content for d in retrieved_docs]
 
             # Extract & link entities
             ents = extract_entities(query + " " + " ".join(retrieved_texts))
-            candidates = {e: link_entity(e) for e in ents}
+            # candidates = {e: link_entity(e) for e in ents}
+            candidates = {e: link_entity_cached(e) for e in ents}
+
             qids = [q for c in candidates.values() for q in c]
 
             # KG triples
-            triples = get_kg_triples(qids, limit_per_q=5)
+            # triples = get_kg_triples(qids, limit_per_q=5)
+            limit_per_q = 3 if len(query.split()) < 10 else 8
+            triples = get_kg_triples(qids, limit_per_q)
             kg_text = "\n".join(facts_to_text(triples))
 
             # Prompt assembly
-            response = prompt_patcher.run_with_model(llm_base, query, retrieved_docs, kg_text)
+            response = await prompt_patcher.run_with_model(llm_base, query, retrieved_docs, kg_text)
             answer = response.content.strip() if response else "DEBUG: Skipped due to capacity issue"
             
 
@@ -201,10 +214,10 @@ async def run_patch_trials(dataset):
         trial_metrics = evaluate_ragas(llm,embeddings,dataset_answer)
         print(trial_metrics)
         
-
-        avg_metrics = {k: sum([0 if (isinstance(x, float) and math.isnan(x)) else x for x in v])/len(v) 
-                        for k, v in trial_metrics.items()}
-
+        def mean_no_nan(values):
+            valid = [v for v in values if isinstance(v, (int, float)) and not math.isnan(v)]
+            return sum(valid) / len(valid) if valid else 0.0
+        avg_metrics = {k: mean_no_nan(v) for k, v in trial_metrics.items()}
 
         log_entry = {
             "trial_id": patch_id,
@@ -224,7 +237,7 @@ async def run_patch_trials(dataset):
 
 
 def main():
-    results = asyncio.run(run_patch_trials(dataset))
+    results = asyncio.run(run_patch_trials(dataset[:4]))
     logging.info(json.dumps(results, indent=2))
 
 if __name__ == "__main__":

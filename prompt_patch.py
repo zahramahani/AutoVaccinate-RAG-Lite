@@ -1,26 +1,21 @@
+#prompt_patch.py
 import json
 import time
+import asyncio
+import logging
 
-def safe_invoke(llm, prompt, retries=5, delay=5):
-    """
-    Retry wrapper for Mistral API calls to handle temporary 429 / capacity errors.
-    """
-    for attempt in range(1, retries + 1):
+async def safe_call(llm, prompt, max_retries=5, delay=5):
+    for attempt in range(max_retries):
         try:
-
-            response_text = llm.invoke(prompt)
-            return response_text
+            return await asyncio.to_thread(llm.invoke, prompt)
         except Exception as e:
-            msg = str(e)
-            if "capacity" in msg.lower() or "429" in msg:
-                print(f"⚠️ [Attempt {attempt}/{retries}] Mistral capacity issue, retrying in {delay * attempt}s...")
-                time.sleep(delay * attempt)
-                
+            if attempt < max_retries - 1:
+                logging.warning(f"⚠️ Retry {attempt+1} after error: {e}")
+                await asyncio.sleep(delay * (attempt + 1))
             else:
-                print(f"❌ Mistral error (non-retryable): {e}")
-                raise
-    print("🚫 Mistral API unavailable after multiple retries — skipping call.")
-    return None  # fallback to None if all retries fail
+                logging.error(f"❌ LLM call failed after {max_retries} retries: {e}")
+                return None
+
 
 class PromptPatcher:
     def __init__(self, config_path="configs/prompts.json"):
@@ -62,10 +57,12 @@ class PromptPatcher:
         )
         return prompt
 
-    def run_with_model(self, llm, query, retrieved_docs, kg_text=""):
+    async def run_with_model(self, llm, query, retrieved_docs, kg_text=""):
         """
         Combine prompt formatting and LLM invocation in one step.
         """
         prompt = self.format(query, retrieved_docs, kg_text)
-        response = safe_invoke(llm, prompt)
+        response = await safe_call(llm,prompt)
+
+        # response = safe_invoke(llm, prompt)
         return response
