@@ -88,14 +88,15 @@ vectorstore = Chroma(
 PATCH_SPACE = [
     {"retriever_type": "dense", "k": 5, "prompt_id": "default", "rerank_on": False},
     {"retriever_type": "dense", "k": 7, "prompt_id": "verbose", "rerank_on": True},
-    # {"retriever_type": "bm25", "k": 5, "prompt_id": "verifier", "rerank_on": True},
+    {"retriever_type": "bm25", "k": 5, "prompt_id": "verifier", "rerank_on": True},
     {"retriever_type": "dense", "k": 3, "prompt_id": "verifier", "rerank_on": False},
-    # {"retriever_type": "bm25", "k": 10, "prompt_id": "default", "rerank_on": False},
+    {"retriever_type": "bm25", "k": 10, "prompt_id": "default", "rerank_on": False},
 ]
 
 # --- DATASET LOADING ---
 dataset = load_from_disk("./data/hotpotqa_1k")
 formatted_dataset = []
+
 for item in dataset:
     query = item["question"]
     answer = item["answer"]
@@ -116,7 +117,7 @@ async def run_patch_trials(dataset, max_samples=None):
     results = []
     cost_breakdown_log = []
     ragas_eval_data = []  # Collect data for RAGAS batch evaluation
-    
+    bm25_retriver = None
     # Initialize bandit
     bandit = BanditPatchSelector(patch_space=PATCH_SPACE, alpha=0.5, dim=5)
     logging.info(f"🤖 Initialized LinUCB bandit with {len(PATCH_SPACE)} arms")
@@ -176,7 +177,11 @@ async def run_patch_trials(dataset, max_samples=None):
         
         # Rebuild retriever
         if retriever_type == "bm25":
-            retriever = build_retriever("bm25")
+            if bm25_retriver:
+                retriever = bm25_retriver
+            else:
+                retriever = build_retriever(embeddings_base,"bm25")
+                bm25_retriver = retriever
         else:
             retriever = RetrieverController(embeddings_base,default_type=retriever_type, default_k=k)
             retriever.set_k(k)
