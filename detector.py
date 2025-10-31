@@ -23,7 +23,7 @@ def get_nli():
     global _nli
     if _nli is None:
         _nli = pipeline("text-classification", model="roberta-large-mnli",
-                        device=0 if __import__("torch").cuda.is_available() else -1)
+                        device=-1)
     return _nli
 
 # -------------------- KG Consistency --------------------

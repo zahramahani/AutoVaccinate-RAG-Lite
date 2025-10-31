@@ -57,12 +57,12 @@ class RetrieverController:
     Compatible with LangChain retriever API.
     """
 
-    def __init__(self, default_type="bm25", default_k=5, chroma_dir="./data_store/chroma_fever_store"):
+    def __init__(self,embeddings, default_type="bm25", default_k=5, chroma_dir="./data_store/chroma_fever_store"):
         self.k = default_k
         self.active_type = default_type
         self.bm25 = None
         self.chroma = None
-        self.embeddings = SentenceTransformerEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        self.embeddings = embeddings
         self.chroma_dir = chroma_dir
         logging.info(f"📦 RetrieverController initialized: type={default_type}, k={default_k}")
 
