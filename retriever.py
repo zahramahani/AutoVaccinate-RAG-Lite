@@ -111,7 +111,7 @@ class RetrieverController:
 # ------------------------------------
 # RETRIEVER BUILD PIPELINE
 # ------------------------------------
-def build_retriever(retriver_type):
+def build_retriever(embeddings, retriver_type):
     # NLTK setup
     nltk.download("punkt", quiet=True)
     nltk.download("punkt_tab", quiet=True)
@@ -176,7 +176,7 @@ def build_retriever(retriver_type):
     logging.info(f"✅ Built {len(documents)} documents")
 
     # 5. Build and persist retriever
-    retriever = RetrieverController(default_type=retriver_type, chroma_dir=CHROMA_DIR)
+    retriever = RetrieverController(embeddings, default_type=retriver_type, chroma_dir=CHROMA_DIR)
 
     if retriver_type == "dense":
         logging.info("🚀 Building dense retriever (Chroma)...")
