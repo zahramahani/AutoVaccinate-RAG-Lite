@@ -1,10 +1,12 @@
 # AutoVaccinate-RAG-Lite
+
 A lightweight Retrieval-Augmented Generation (RAG) prototype that detects its own factual or regression failures and applies the most cost-effective corrective patch under knowledge-graph constraints.
 ---
 
 ## 🚀 Overview
 
 **AutoVaccinate-RAG-Lite** explores the idea of **auto-immunizing** a RAG system — i.e., enabling it to:
+
 1. Detect its own factual or consistency failures.
 2. Diagnose the likely failure mode (retrieval vs generation).
 3. Apply a minimal and cost-bounded patch (retriever tuning, prompt edits, reranker toggle, or LoRA micro-adapter).
@@ -133,7 +135,8 @@ MIT License — open for academic and research use.
 
 ## 🧭 Current Progress
 
-✅ Up to **Phase 6 completed** — RAG setup, failure detection, patch primitives, and evaluation harness, contextual-bandit patch selector under latency and cost constraints,test on 1000 samples of hotpot-qa 
+✅ Up to **Phase 6 completed** — RAG setup, failure detection, patch primitives, and evaluation harness, contextual-bandit patch selector under latency and cost constraints,test on 1000 samples of hotpot-qa.
+ 
 🛠️ **Phase 5 underway** — Add LoRA micro-patch option.
 
 ---
