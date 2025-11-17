@@ -27,6 +27,7 @@ from linker import extract_entities, link_entity
 from kg_query import get_kg_triples, facts_to_text
 from detector import detect_failures
 from eval.metrics import evaluate_ragas
+# from lora.lora_adapter import load_local_llm
 
 # NEW: Bandit and cost model
 from bandit_selector import BanditPatchSelector
@@ -84,6 +85,10 @@ vectorstore = Chroma(
     embedding_function=embeddings_base
 )
 
+LOCAL_LORA_DIR = "adapters/fever_v1"
+USE_LOCAL_LLM = os.path.isdir(LOCAL_LORA_DIR)
+# local_llm = load_local_llm(lora_dir=LOCAL_LORA_DIR) if USE_LOCAL_LLM else None
+
 # --- PATCH SPACE DEFINITION ---
 PATCH_SPACE = [
     {"retriever_type": "dense", "k": 5, "prompt_id": "default", "rerank_on": False},
@@ -91,6 +96,9 @@ PATCH_SPACE = [
     {"retriever_type": "bm25", "k": 5, "prompt_id": "verifier", "rerank_on": True},
     {"retriever_type": "dense", "k": 3, "prompt_id": "verifier", "rerank_on": False},
     {"retriever_type": "bm25", "k": 10, "prompt_id": "default", "rerank_on": False},
+    # NEW: LoRA arms (generation micro-patch)
+    {"retriever_type": "dense", "k": 5, "prompt_id": "verifier", "rerank_on": True, "lora_id": "fever_v1"},
+    {"retriever_type": "bm25", "k": 7, "prompt_id": "verifier", "rerank_on": False, "lora_id": "fever_v1"},
 ]
 
 # --- DATASET LOADING ---
@@ -142,23 +150,28 @@ async def run_patch_trials(dataset, max_samples=None):
         retrieved_docs = initial_retriever.retrieve(query)
         profiler.log_measurement("retrieval_initial")
         retrieved_texts = [d.page_content for d in retrieved_docs]
+        # Decide generator: LoRA or Mistral
         
         # Extract entities & KG
         ents = extract_entities(query + " " + " ".join(retrieved_texts))
         candidates = {e: link_entity(e) for e in ents}
         qids = [q for c in candidates.values() for q in c]
         triples = get_kg_triples(qids, limit_per_q=5)
+        print("triples are:", triples)
         profiler.log_measurement("kg_retrieval")
         kg_text = "".join(facts_to_text(triples))
+        
         
         # Generate initial answer
         response, tokens_used = prompt_patcher.run_with_model(
             llm_base, query, retrieved_docs, kg_text
         )
+        print("input is:",query,retrieved_docs,kg_text)
         profiler.add_api_tokens(tokens_used)
         profiler.log_measurement("generation_initial")
         
         initial_answer = response.content.strip() if response else "ERROR: Skipped"
+        
         
         # Detect failures
         failure_report = detect_failures(query, retrieved_texts, initial_answer)
@@ -200,9 +213,18 @@ async def run_patch_trials(dataset, max_samples=None):
         retrieved_texts = [d.page_content for d in retrieved_docs]
         
         # Re-generate answer
+        # if selected_patch.get("lora_id") and local_llm is not None:
+        #     generator_llm = local_llm  # route to local LoRA
+        #     # Re-generate answer
+        #     response, tokens_used = prompt_patcher.run_with_model(
+        #         generator_llm, query, retrieved_docs, kg_text
+        #     )
+        # else:
+            # Generate initial answer
         response, tokens_used = prompt_patcher.run_with_model(
             llm_base, query, retrieved_docs, kg_text
         )
+
         profiler.add_api_tokens(tokens_used)
         profiler.log_measurement("generation_patched")
         
@@ -227,20 +249,14 @@ async def run_patch_trials(dataset, max_samples=None):
         component_breakdown = profiler.get_component_breakdown()
         
         # --- REWARD CALCULATION (Binary for now, will enhance with RAGAS) ---
-        reward = 1.0 if (
-            final_failure.get("nli") == "ENTAILS" and
-            final_failure.get("kg_aggregate") == "KG_CONSISTENT"
-        ) else 0.0
-
-        # no need
-        # reward = calculate_combined_reward(
-        #     failure_report=final_failure,
-        #     ragas_scores=results[-1].get("ragas_scores") if results else None,  # use scores if we already have them
-        #     use_ragas=True,        # toggle to False to fall back to pure binary
-        #     ragas_weight=0.7      # 70 % RAGAS, 30 % binary
-        # )
-        
-        # Calculate cost (using real metrics)
+        if final_failure.get("failure_label") == "KG_MISMATCH" or final_failure.get("failure_label") == "NLI_ONLY":
+            reward = 0.5
+        elif final_failure.get("failure_label") == "OK":
+            reward = 1.0 
+        elif final_failure.get("failure_label") == "NO_EVIDENCE":
+            reward = 0.25
+        elif final_failure.get("failure_label") == "BOTH_FAIL":
+            reward = 0.0
         patch_cost = calculate_patch_cost(selected_patch, real_metrics)
         
         logging.info(
@@ -252,7 +268,7 @@ async def run_patch_trials(dataset, max_samples=None):
         
         # --- UPDATE BANDIT ---
         # --- UTILITY CALCULATION (Reward - Cost) ---
-        lambda_param = 0.3  # How much to penalize cost
+        lambda_param = 0.5  # How much to penalize cost
         utility = reward - lambda_param * patch_cost
 
         # --- UPDATE BANDIT ---
@@ -352,7 +368,7 @@ def main():
     logging.info("🚀 Starting AutoVaccinate-RAG-Lite (Week 4: Real-Time Profiling + RAGAS)")
     
     # Run trials
-    results, avg_ragas = asyncio.run(run_patch_trials(dataset, max_samples=50))
+    results, avg_ragas = asyncio.run(run_patch_trials(dataset))#, max_samples=50
     
     logging.info(f"{'='*80}")
     logging.info(f"✅ Completed {len(results)} trials")
