@@ -127,5 +127,5 @@ def save_trial_results(results, output_path="logs/trial_results.jsonl"):
     """Save trial results to JSONL."""
     with open(output_path, "w") as f:
         for record in results:
-            f.write(json.dumps(record) + "")
+            f.write(json.dumps(record) + "\n")
     print(f"✅ Trial results saved to {output_path}")
