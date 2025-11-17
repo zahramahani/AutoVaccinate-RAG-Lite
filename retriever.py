@@ -28,7 +28,8 @@ from nltk.tokenize import sent_tokenize
 # ------------------------------------
 RETRIEVER_TYPE = "dense"  # ← "dense" or "bm25"
 CHROMA_DIR = "./data_store/chroma_fever_store/"
-FEVER_PATH = "./data/fever_shared_task_dev.jsonl"
+# FEVER_PATH = "./data/fever_shared_task_dev.jsonl"
+FEVER_PATH = "./data/fever-train.jsonl"
 WIKI_DIR = "./data/wiki-pages/wiki-pages"
 
 os.makedirs(CHROMA_DIR, exist_ok=True)
