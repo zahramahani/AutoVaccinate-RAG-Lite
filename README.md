@@ -136,7 +136,7 @@ MIT License — open for academic and research use.
 ## 🧭 Current Progress
 
 ✅ Up to **Phase 6 completed** — RAG setup, failure detection, patch primitives, and evaluation harness, contextual-bandit patch selector under latency and cost constraints,test on 1000 samples of hotpot-qa.
- 
+
 🛠️ **Phase 5 underway** — Add LoRA micro-patch option.
 
 ---
@@ -183,3 +183,7 @@ Construct the document retriever by executing `./1-retriever_builder.py`.
 ### 🧭 Project Execution
 
 Launch the main application by running `./3-main.py`.
+
+### 🧭 Project Evaluation
+
+**Get Latency and VRam Usage**: run `calc_latency_vram.py` in logs folder.
