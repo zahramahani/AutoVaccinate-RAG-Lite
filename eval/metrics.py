@@ -46,7 +46,7 @@ def evaluate_ragas(
         {
             "question": str(d["question"]),
             "answer": str(d["answer"]),
-            "contexts": [str(doc.page_content) for doc in d["contexts"]],
+            "contexts": [str(doc) for doc in d["contexts"]],
             "ground_truth": str(d["ground_truth"])
         }
         for d in dataset
@@ -113,7 +113,7 @@ def simple_evaluate_ragas(query, answer, retrieved_docs, gold_answer):
 
     """
     # Aggregate retrieved context
-    context_text = " ".join(d.page_content for d in retrieved_docs) if retrieved_docs else ""
+    context_text = " ".join(d for d in retrieved_docs) if retrieved_docs else ""
 
     # 1️⃣ Faithfulness — similarity between answer and context
     faithfulness = cosine_sim(answer, context_text) if context_text else 0.0

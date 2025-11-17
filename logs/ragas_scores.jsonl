@@ -1,0 +1,27 @@
+{
+  "faithfulness": [
+    0.0,
+    0.2857142857142857,
+    0.0
+  ],
+  "nv_accuracy": [
+    1.0,
+    NaN,
+    NaN
+  ],
+  "nv_context_relevance": [
+    NaN,
+    NaN,
+    NaN
+  ],
+  "llm_context_precision_with_reference": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "context_recall": [
+    0.0,
+    0.0,
+    0.0
+  ]
+}
