@@ -1,7 +1,12 @@
+from langchain_community.embeddings import SentenceTransformerEmbeddings
 from retriever import build_retriever
 import logging
+
 if __name__ == "__main__":
-    retriever = build_retriever("dense")# or dense
+    embeddings_base = SentenceTransformerEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+    retriever = build_retriever(embeddings_base, "dense")# or dense
     test_query = "Was Albert Einstein a physicist?"
     logging.info(f"🧠 Testing retriever on query: {test_query}")
     results = retriever.retrieve(test_query)
