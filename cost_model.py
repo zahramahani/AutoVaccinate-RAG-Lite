@@ -28,6 +28,7 @@ COST_MODEL = {
     "prompt_verifier": {"latency": 0.1, "vram": 0.1, "api_calls": 0.3},
     "prompt_default": {"latency": 0.05, "vram": 0.05, "api_calls": 0.1},
     "prompt_concise": {"latency": 0.05, "vram": 0.05, "api_calls": 0.05},
+    "lora_on": {"latency": 0.7, "vram": 1.0, "api_calls": 0.0},
 }
 
 # Normalization constants
@@ -137,6 +138,10 @@ def calculate_patch_cost_synthetic(patch_config: Dict) -> float:
         cost["latency"] += COST_MODEL[prompt_key]["latency"]
         cost["vram"] += COST_MODEL[prompt_key]["vram"]
         cost["api_calls"] += COST_MODEL[prompt_key]["api_calls"]
+
+    if patch_config.get("lora_id"):
+        cost["latency"] += COST_MODEL["lora_on"]["latency"]
+        cost["vram"] += COST_MODEL["lora_on"]["vram"]
     
     # Normalize
     norm_latency = min(cost["latency"] / MAX_LATENCY, 1.0)
