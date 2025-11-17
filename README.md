@@ -186,4 +186,6 @@ Launch the main application by running `./3-main.py`.
 
 ### 🧭 Project Evaluation
 
+**Check assessment Results**: check logs folder.
+
 **Get Latency and VRam Usage**: run `calc_latency_vram.py` in logs folder.
