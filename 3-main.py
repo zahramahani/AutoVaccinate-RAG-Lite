@@ -211,7 +211,7 @@ async def run_patch_trials(dataset, max_samples=None):
             profiler.log_measurement("reranking")
         
         retrieved_texts = [d.page_content for d in retrieved_docs]
-        
+        print("retrived texts are",retrieved_texts[:2])
         # Re-generate answer
         # if selected_patch.get("lora_id") and local_llm is not None:
         #     generator_llm = local_llm  # route to local LoRA
@@ -249,7 +249,7 @@ async def run_patch_trials(dataset, max_samples=None):
         component_breakdown = profiler.get_component_breakdown()
         
         # --- REWARD CALCULATION (Binary for now, will enhance with RAGAS) ---
-        if final_failure.get("failure_label") == "KG_MISMATCH" or final_failure.get("failure_label") == "NLI_ONLY":
+        if final_failure.get("failure_label") == "KG_MATCH" or final_failure.get("failure_label") == "NLI_ONLY":
             reward = 0.5
         elif final_failure.get("failure_label") == "OK":
             reward = 1.0 

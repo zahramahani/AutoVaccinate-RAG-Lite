@@ -625,12 +625,12 @@ def detect_failures(claim: str,
     # --------------------------------------
     if kg_agg == "KG_CONSISTENT":
         if nli_label == "CONTRADICTS":
-            failure = "KG_MISMATCH"   # KG says true, docs say no
+            failure = "KG_MATCH"   # KG says true, docs say no
         else:
             failure = "OK"            # docs don’t support but don’t contradict
     elif kg_agg == "KG_INCONSISTENT":
         if nli_label == "ENTAILS":
-            failure = "KG_MISMATCH"
+            failure = "NLI_ONLY"
         else:
             failure = "BOTH_FAIL"
     else:
