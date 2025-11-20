@@ -186,6 +186,51 @@ Launch the main application by running `./3-main.py`.
 
 ### 🧭 Project Evaluation
 
+#### 📊 Bandit Performance Summary
+
+| Arm Name   | Reward Mean | Reward Std | Count | Cost Mean | Cost Std |
+|------------|-------------|------------|-------|-----------|----------|
+| **Arm0: den_k5**  | 0.057 | 0.042 | 138 | 0.401 | 0.004 |
+| **Arm1: den_k7**  | 0.052 | 0.022 | 128 | 0.401 | 0.001 |
+| **Arm2: bm2_k5**  | 0.052 | 0.033 | 131 | 0.403 | 0.021 |
+| **Arm3: den_k3**  | 0.061 | 0.091 | 135 | 0.401 | 0.001 |
+| **Arm4: bm2_k10** | 0.063 | 0.058 | 196 | 0.401 | 0.003 |
+| **Arm5: den_k5**  | 0.053 | 0.030 | 136 | 0.401 | 0.002 |
+| **Arm6: bm2_k7**  | 0.053 | 0.030 | 136 | 0.401 | 0.002 |
+
+---
+
+##### 📈 Bandit Performance Summary (Indexed)
+
+| Arm | Reward Mean | Reward Std | Count | Cost Mean | Cost Std |
+|-----|-------------|------------|-------|-----------|----------|
+| **0** | 0.057 | 0.042 | 138 | 0.401 | 0.004 |
+| **1** | 0.052 | 0.022 | 128 | 0.401 | 0.001 |
+| **2** | 0.052 | 0.033 | 131 | 0.403 | 0.021 |
+| **3** | 0.061 | 0.091 | 135 | 0.401 | 0.001 |
+| **4** | 0.063 | 0.058 | 196 | 0.401 | 0.003 |
+| **5** | 0.053 | 0.030 | 136 | 0.401 | 0.002 |
+| **6** | 0.053 | 0.030 | 136 | 0.401 | 0.002 |
+
+---
+
+#### 🎯 Overall Success Rate: **5.64%**
+
+#### 💰 Average Cost per Trial: **0.401**
+
+---
+
+#### 📚 RAGAS Evaluation Summary
+
+| Metric                                         | Value   |
+|------------------------------------------------|---------|
+| **faithfulness**                                | 0.6455  |
+| **nv_accuracy**                                 | 0.0837  |
+| **nv_context_relevance**                        | 0.0498  |
+| **llm_context_precision_with_reference**        | 0.0129  |
+| **context_recall**                              | 0.0602  |
+
+
 **Check assessment Results**: check logs folder.
 
 **Get Latency and VRam Usage**: run `calc_latency_vram.py` in logs folder.
